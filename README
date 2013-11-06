@@ -1,0 +1,4 @@
+	README FILE:
+Run library A configuration
+Run library B configuration
+Run Procurement service which is further using dropwizard jobs
