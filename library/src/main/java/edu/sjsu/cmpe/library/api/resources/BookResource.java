@@ -1,5 +1,8 @@
 package edu.sjsu.cmpe.library.api.resources;
 
+
+
+import javax.jms.JMSException;
 import javax.validation.Valid;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -14,9 +17,21 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import javax.jms.Connection;
+import javax.jms.DeliveryMode;
+import javax.jms.Destination;
+import javax.jms.JMSException;
+import javax.jms.MessageProducer;
+import javax.jms.Session;
+import javax.jms.TextMessage;
+
+import org.fusesource.stomp.jms.StompJmsConnectionFactory;
+import org.fusesource.stomp.jms.StompJmsDestination;
+
 import com.yammer.dropwizard.jersey.params.LongParam;
 import com.yammer.metrics.annotation.Timed;
 
+import edu.sjsu.cmpe.library.LibraryService;
 import edu.sjsu.cmpe.library.domain.Book;
 import edu.sjsu.cmpe.library.domain.Book.Status;
 import edu.sjsu.cmpe.library.dto.BookDto;
@@ -85,16 +100,43 @@ public class BookResource {
     @Path("/{isbn}")
     @Timed(name = "update-book-status")
     public Response updateBookStatus(@PathParam("isbn") LongParam isbn,
-	    @DefaultValue("available") @QueryParam("status") Status status) {
+	    @DefaultValue("available") @QueryParam("status") Status status) throws JMSException {
 	Book book = bookRepository.getBookByISBN(isbn.get());
 	book.setStatus(status);
+	
+		
+	if(book.getStatus().name() == "lost")
+	{
+		StompJmsConnectionFactory factory = new StompJmsConnectionFactory();
+		factory.setBrokerURI("tcp://" + LibraryService.host + ":" + LibraryService.port);
 
+		Connection connection = factory.createConnection(LibraryService.user, LibraryService.password);
+		//System.out.println("Sending messages - before connection");
+		connection.start();
+		//System.out.println("Sending messages - after connection");
+		Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+		Destination dest = new StompJmsDestination(LibraryService.destination);
+		MessageProducer producer = session.createProducer(dest);
+		producer.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
+
+		System.out.println("[Library-to-Queue]Sending messages to " + LibraryService.destination + "...");
+		//String data = "Hello World AWS"
+		String data = LibraryService.libraryName + ":" + isbn;
+		TextMessage msg = session.createTextMessage(data);
+		msg.setLongProperty("id", System.currentTimeMillis());
+		producer.send(msg);
+
+		//producer.send(session.createTextMessage("SHUTDOWN"));
+		connection.close();
+	}
 	BookDto bookResponse = new BookDto(book);
 	String location = "/books/" + book.getIsbn();
 	bookResponse.addLink(new LinkDto("view-book", location, "GET"));
 
 	return Response.status(200).entity(bookResponse).build();
-    }
+
+	}
+	
 
     @DELETE
     @Path("/{isbn}")

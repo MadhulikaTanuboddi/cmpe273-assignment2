@@ -79,6 +79,22 @@ public class BookRepository implements BookRepositoryInterface {
     }
 
     /**
+     * Added by madhuliks: This will take a specific book with a isbn (no generation of isbn here) and creates the books
+     */
+    @Override
+    public Book saveBookByISBN(Book newBook, Long isbn) {
+	checkNotNull(newBook, "newBook instance must not be null");
+	// Generate new ISBN
+	newBook.setIsbn(isbn);
+	// TODO: create and associate other fields such as author
+
+	// Finally, save the new book into the map
+	bookInMemoryMap.putIfAbsent(isbn, newBook);
+
+	return newBook;
+    }
+    
+    /**
      * @see edu.sjsu.cmpe.library.repository.BookRepositoryInterface#getBookByISBN(java.lang.Long)
      */
     @Override

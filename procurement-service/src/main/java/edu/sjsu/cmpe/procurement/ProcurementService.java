@@ -1,5 +1,6 @@
 package edu.sjsu.cmpe.procurement;
 
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,6 +17,19 @@ import edu.sjsu.cmpe.procurement.config.ProcurementServiceConfiguration;
 public class ProcurementService extends Service<ProcurementServiceConfiguration> {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
+    
+  //Apollo broker variables
+    public static String queueName;
+    public static String apolloUser;
+	public static String apolloHost; 
+	public static String apolloPort;
+	public static String  host;
+	public static String Libraryfrom;
+	public static int port;
+	public static String user;
+	public static String password;
+	public static String destination;
+	public static String topicdestination;
 
     /**
      * FIXME: THIS IS A HACK!
@@ -40,8 +54,16 @@ public class ProcurementService extends Service<ProcurementServiceConfiguration>
     public void run(ProcurementServiceConfiguration configuration,
 	    Environment environment) throws Exception {
 	jerseyClient = new JerseyClientBuilder()
-	.using(configuration.getJerseyClientConfiguration())
-	.using(environment).build();
+		.using(configuration.getJerseyClientConfiguration())
+		.using(environment).build();
+	
+	//Retrieving names from procurementServiceConfig
+	String queueName = configuration.getStompQueueName();
+	String topicName = configuration.getStompTopicPrefix();
+	String apolloUser = configuration.getApolloUser();
+	String apolloPassword = configuration.getApolloPassword();
+	apolloHost = configuration.getApolloHost();
+	apolloPort = configuration.getApolloPort();
 
 	/**
 	 * Root API - Without RootResource, Dropwizard will throw this
@@ -53,10 +75,24 @@ public class ProcurementService extends Service<ProcurementServiceConfiguration>
 	 */
 	environment.addResource(RootResource.class);
 
-	String queueName = configuration.getStompQueueName();
-	String topicName = configuration.getStompTopicPrefix();
+	queueName = configuration.getStompQueueName();
+	topicName = configuration.getStompTopicPrefix();
 	log.debug("Queue name is {}. Topic is {}", queueName, topicName);
 	// TODO: Apollo STOMP Broker URL and login
-
+	user = env("APOLLO_USER",apolloUser );
+	password = env("APOLLO_PASSWORD", apolloPassword);
+	host = env("APOLLO_HOST", apolloHost);
+	port = Integer.parseInt(env("APOLLO_PORT", apolloPort));
+	destination = queueName;
+	topicdestination = topicName;
     }
+    
+    
+    private static String env(String key, String defaultValue) {
+    	String rc = System.getenv(key);
+    	if( rc== null ) {
+    	    return defaultValue;
+    	}
+    	return rc;
+        }
 }
